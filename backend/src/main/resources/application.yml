@@ -1,0 +1,35 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: lecturenote-backend
+  servlet:
+    multipart:
+      max-file-size: 500MB
+      max-request-size: 500MB
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:lecturenote}}
+    username: ${POSTGRES_USER:lecturenote}
+    password: ${POSTGRES_PASSWORD:lecturenote}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+
+app:
+  storage:
+    audio-dir: ${STORAGE_AUDIO_DIR:../storage/audio}
+  stt:
+    worker-url: ${STT_WORKER_URL:http://localhost:8000}
+    callback-url: ${STT_CALLBACK_URL:http://localhost:8080/internal/stt/callback}
+    shared-secret: ${STT_SHARED_SECRET:lecturenote-secret-token-change-in-prod}
+  ollama:
+    base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+    model: ${OLLAMA_MODEL:exaone3.5:2.4b}
+    num-ctx: ${OLLAMA_NUM_CTX:8192}
