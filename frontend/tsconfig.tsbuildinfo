@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/hooks/uselectureevents.ts","./src/pages/lecturedetailpage.tsx","./src/pages/lecturelistpage.tsx","./src/pages/uploadpage.tsx","./src/services/api.ts","./src/types/lecture.ts"],"version":"5.9.3"}
