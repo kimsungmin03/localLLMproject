@@ -1,0 +1,40 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: lecturenote-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-lecturenote}
+      POSTGRES_USER: ${POSTGRES_USER:-lecturenote}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lecturenote}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-lecturenote} -d ${POSTGRES_DB:-lecturenote}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Ollama is run natively on the host by default to leverage local NVIDIA GPU acceleration easily.
+  # If you prefer running Ollama via Docker, run with: docker compose --profile with-ollama up -d
+  ollama:
+    image: ollama/ollama:latest
+    container_name: lecturenote-ollama
+    profiles: ["with-ollama"]
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+volumes:
+  postgres_data:
+  ollama_data:
