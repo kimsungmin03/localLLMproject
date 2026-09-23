@@ -83,12 +83,14 @@ stateDiagram-v2
   ```json
   {
     "lectureId": 1,
-    "audioPath": "./storage/audio/uuid-sample.mp3",
+    "audioPath": "3f2a9c1e-....mp3",
     "callbackUrl": "http://localhost:8080/internal/stt/callback",
     "language": "ko"
   }
   ```
+- **`audioPath`는 경로가 아니라 storage 루트 기준 파일명**입니다. 백엔드와 워커는 각자 `STORAGE_AUDIO_DIR`(미설정 시 레포의 `storage/audio`)로 실제 경로를 만듭니다. 상대경로를 주고받으면 실행 위치(`backend/`, `stt-worker/`)에 따라 다른 곳을 가리키기 때문입니다. 워커는 파일명에 경로 구분자가 없는지 검증해야 합니다.
 - **Response**: `202 Accepted` 즉시 응답 후 BackgroundTasks 실행.
+- 백엔드 큐 작업은 이 강의의 `COMPLETED`/`FAILED` 콜백을 받을 때까지 대기합니다. `STT_INACTIVITY_TIMEOUT`(기본 10분) 동안 콜백이 없거나 `STT_MAX_DURATION`(기본 3시간)을 넘기면 `FAILED`로 처리하고, 이후 도착한 콜백에는 `409`를 반환합니다. 종료 뒤 늦게 도착한 `PROGRESS`도 `409`로 무시합니다.
 
 ### 4.2 콜백 전송 (`STT Worker` ➔ `Spring Boot`)
 - **Endpoint**: `POST http://localhost:8080/internal/stt/callback`
@@ -227,6 +229,7 @@ CREATE INDEX idx_summary_lecture_kind ON summary(lecture_id, kind);
 
 ## 8. GPU VRAM 관리 및 동시성 제어
 1. **단일 스레드 작업 큐 (Single Thread Queue)**:
-   - Spring Boot 내 `ThreadPoolTaskExecutor(core=1, max=1, queueCapacity=100)`를 적용하여 STT 작업 및 LLM 요약 작업을 한 번에 1개씩 순차 처리합니다.
+   - Spring Boot 내 단일 스레드 executor(`queueCapacity=JOB_QUEUE_CAPACITY`, 기본 100)로 STT 작업과 LLM 요약 작업을 한 번에 1개씩 순차 처리합니다.
+   - 워커는 `202`를 즉시 반환하므로, 큐 작업은 STT 완료·실패 콜백(`CompletableFuture`와 타임아웃)과 요약 종료까지 스레드를 점유한 채 기다립니다. 그래야 다음 강의가 시작되지 않습니다.
 2. **STT ➔ LLM 순차 파이프라인**:
    - STT Worker 추론이 완료되어 GPU 메모리 점유가 낮아진 후 Ollama LLM 추론을 시작하므로 8GB VRAM(RTX 3070) 내에서 OOM 위험 없이 안전하게 구동됩니다.

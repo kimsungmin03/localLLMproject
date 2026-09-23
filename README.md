@@ -84,6 +84,10 @@ uvicorn main:app --host 0.0.0.0 --port 8000
 cd backend
 ./gradlew bootRun
 ```
+- 시스템 기본 Java가 21이 아니어도 Gradle toolchain이 설치된 JDK 21을 찾아 사용합니다.
+- 설정은 **환경변수 > 루트 `.env` > `application.yml` 기본값** 순으로 적용됩니다. Spring은 `.env`를 기본으로 읽지 않으므로 `spring.config.import: optional:file:../.env[.properties]`로 가져옵니다. 따라서 `backend/` 디렉터리에서 실행해야 루트 `.env`가 적용됩니다.
+- `STT_SHARED_SECRET`이 비어 있으면 기동에 실패합니다.
+- 테스트(`./gradlew test`)는 embedded-postgres(PostgreSQL 16 바이너리)를 사용하므로 Docker 없이 실행됩니다.
 
 ### 6. Frontend 실행
 ```bash

@@ -1,0 +1,53 @@
+# 설정값은 환경변수 > 루트 .env > 아래 기본값 순으로 적용된다.
+# .env 는 bootRun 실행 위치(backend/) 기준 ../.env 를 읽는다.
+spring:
+  application:
+    name: lecturenote-backend
+  config:
+    import: optional:file:../.env[.properties]
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/lecturenote}
+    username: ${POSTGRES_USER:lecturenote}
+    password: ${POSTGRES_PASSWORD:lecturenote}
+  mvc:
+    problemdetails:
+      enabled: true
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+  servlet:
+    multipart:
+      max-file-size: ${MAX_UPLOAD_SIZE:1GB}
+      max-request-size: ${MAX_UPLOAD_SIZE:1GB}
+
+server:
+  port: ${SERVER_PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+app:
+  storage:
+    # 미설정 시 레포 루트의 storage/audio (backend/ 에서 실행 기준). 워커와 공유하려면 절대경로 권장.
+    audio-dir: ${STORAGE_AUDIO_DIR:../storage/audio}
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+  stt:
+    worker-url: ${STT_WORKER_URL:http://localhost:8000}
+    callback-url: ${STT_CALLBACK_URL:http://localhost:8080/internal/stt/callback}
+    shared-secret: ${STT_SHARED_SECRET:}
+    language: ${STT_LANGUAGE:ko}
+    # 이 시간 동안 워커 콜백이 없으면 FAILED
+    inactivity-timeout: ${STT_INACTIVITY_TIMEOUT:10m}
+    # 한 강의 STT 전체 상한
+    max-duration: ${STT_MAX_DURATION:3h}
+  queue:
+    capacity: ${JOB_QUEUE_CAPACITY:100}
+  sse:
+    timeout: ${SSE_TIMEOUT:30m}
