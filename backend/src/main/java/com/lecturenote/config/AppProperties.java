@@ -4,6 +4,8 @@ import lombok.Getter;
 import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+import java.time.Duration;
+
 @Getter
 @Setter
 @ConfigurationProperties(prefix = "app")
@@ -24,6 +26,10 @@ public class AppProperties {
         private String workerUrl = "http://localhost:8000";
         private String callbackUrl = "http://localhost:8080/internal/stt/callback";
         private String sharedSecret = "lecturenote-secret-token-change-in-prod";
+        /** 이 시간 동안 워커 콜백이 없으면 FAILED. */
+        private Duration inactivityTimeout = Duration.ofMinutes(10);
+        /** 한 강의 STT 전체 상한. */
+        private Duration maxDuration = Duration.ofHours(3);
     }
 
     @Getter

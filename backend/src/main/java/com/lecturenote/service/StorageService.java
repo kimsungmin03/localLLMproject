@@ -64,7 +64,7 @@ public class StorageService {
             if (resource.exists() && resource.isReadable()) {
                 return resource;
             } else {
-                throw new RuntimeException("Audio file not found or not readable: " + audioPath);
+                throw new com.lecturenote.exception.NotFoundException("Audio file not found or not readable");
             }
         } catch (MalformedURLException e) {
             throw new RuntimeException("Malformed path for audio: " + audioPath, e);

@@ -16,3 +16,5 @@ app:
     worker-url: http://localhost:8000
     callback-url: http://localhost:8080/internal/stt/callback
     shared-secret: lecturenote-secret-token-change-in-prod
+    # 콜백을 보내지 않는 테스트가 큐를 오래 막지 않도록 짧게
+    inactivity-timeout: 2s

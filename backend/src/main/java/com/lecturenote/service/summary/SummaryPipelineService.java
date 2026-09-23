@@ -11,9 +11,7 @@ import com.lecturenote.repository.TranscriptSegmentRepository;
 import com.lecturenote.service.SseEmitterService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,11 +31,9 @@ public class SummaryPipelineService {
     private final ObjectMapper objectMapper;
 
     /**
-     * Runs Map-Reduce summarization pipeline sequentially in single-threaded 'jobQueueExecutor'
-     * to prevent GPU VRAM collision with STT or concurrent LLM calls.
+     * Map-Reduce 요약. JobQueueService 가 단일 큐 스레드에서 동기로 호출한다(GPU 작업 직렬화).
+     * 수 분이 걸리므로 전체를 하나의 트랜잭션으로 묶지 않는다. 각 save 가 즉시 커밋되어 진행률이 조회 API에도 보인다.
      */
-    @Async("jobQueueExecutor")
-    @Transactional
     public java.util.concurrent.CompletableFuture<Void> executeSummarization(Long lectureId, String modelOverride) {
         Lecture lecture = lectureRepository.findById(lectureId).orElse(null);
         if (lecture == null) {

@@ -2,23 +2,25 @@ package com.lecturenote.controller;
 
 import com.lecturenote.domain.Lecture;
 import com.lecturenote.dto.LectureResponseDto;
+import com.lecturenote.dto.RegenerateSummaryRequestDto;
 import com.lecturenote.dto.TranscriptSegmentDto;
 import com.lecturenote.dto.UploadResponseDto;
+import com.lecturenote.exception.NotFoundException;
 import com.lecturenote.repository.LectureRepository;
+import com.lecturenote.service.JobQueueService;
 import com.lecturenote.service.LectureService;
 import com.lecturenote.service.SseEmitterService;
 import com.lecturenote.service.StorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
-import org.springframework.core.io.support.ResourceRegion;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @RestController
@@ -30,7 +32,7 @@ public class LectureController {
     private final StorageService storageService;
     private final SseEmitterService sseEmitterService;
     private final LectureRepository lectureRepository;
-    private final com.lecturenote.service.summary.SummaryPipelineService summaryPipelineService;
+    private final JobQueueService jobQueueService;
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<UploadResponseDto> uploadLecture(
@@ -75,53 +77,35 @@ public class LectureController {
         return sseEmitterService.subscribe(id);
     }
 
+    /**
+     * Resource 를 그대로 반환하면 Spring MVC가 Range 헤더를 해석해 206(부분)/200(전체)을 만든다.
+     * (이전 구현은 Range 없는 요청에도 앞 1MB만 200으로 보내 파일이 잘렸다.)
+     */
     @GetMapping("/{id}/audio")
-    public ResponseEntity<ResourceRegion> streamAudio(
-            @PathVariable("id") Long id,
-            @RequestHeader HttpHeaders headers) throws IOException {
-
+    public ResponseEntity<Resource> streamAudio(@PathVariable("id") Long id) {
         Lecture lecture = lectureRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Lecture not found: " + id));
+                .orElseThrow(() -> new NotFoundException("Lecture not found: " + id));
 
         Resource resource = storageService.loadAsResource(lecture.getAudioPath());
-        long contentLength = resource.contentLength();
-
-        List<HttpRange> ranges = headers.getRange();
         MediaType mediaType = MediaTypeFactory.getMediaType(resource)
                 .orElse(MediaType.parseMediaType("audio/mpeg"));
-
-        if (!ranges.isEmpty()) {
-            HttpRange range = ranges.get(0);
-            long start = range.getRangeStart(contentLength);
-            long end = range.getRangeEnd(contentLength);
-            long rangeLength = Math.min(1024 * 1024L, end - start + 1); // 1MB chunks
-
-            ResourceRegion region = new ResourceRegion(resource, start, rangeLength);
-            return ResponseEntity.status(HttpStatus.PARTIAL_CONTENT)
-                    .contentType(mediaType)
-                    .header(HttpHeaders.ACCEPT_RANGES, "bytes")
-                    .body(region);
-        } else {
-            long rangeLength = Math.min(1024 * 1024L, contentLength);
-            ResourceRegion region = new ResourceRegion(resource, 0, rangeLength);
-            return ResponseEntity.status(HttpStatus.OK)
-                    .contentType(mediaType)
-                    .header(HttpHeaders.ACCEPT_RANGES, "bytes")
-                    .body(region);
-        }
+        return ResponseEntity.ok()
+                .contentType(mediaType)
+                .header(HttpHeaders.ACCEPT_RANGES, "bytes")
+                .body(resource);
     }
 
     @PostMapping("/{id}/summary:regenerate")
     public ResponseEntity<?> regenerateSummary(
             @PathVariable("id") Long id,
-            @RequestBody(required = false) com.lecturenote.dto.RegenerateSummaryRequestDto request) {
+            @RequestBody(required = false) RegenerateSummaryRequestDto request) {
 
         String model = (request != null) ? request.getModel() : null;
         log.info("Requesting summary regeneration for lecture {}: model={}", id, model);
-        summaryPipelineService.executeSummarization(id, model);
+        jobQueueService.enqueueRegeneration(id, model);
 
         return ResponseEntity.status(HttpStatus.ACCEPTED)
-                .body(java.util.Map.of(
+                .body(Map.of(
                         "status", "ACCEPTED",
                         "lectureId", id,
                         "message", "Summary regeneration enqueued",
