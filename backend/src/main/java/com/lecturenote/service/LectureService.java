@@ -31,6 +31,7 @@ public class LectureService {
     private final StorageService storageService;
     private final org.springframework.context.ApplicationEventPublisher eventPublisher;
     private final SseEmitterService sseEmitterService;
+    private final com.lecturenote.service.summary.SummaryPipelineService summaryPipelineService;
 
     @Transactional
     public LectureResponseDto createLecture(MultipartFile file, String title) {
@@ -151,13 +152,14 @@ public class LectureService {
                 log.info("Saved {} transcript segments for lecture {}", segments.size(), lectureId);
             }
 
-            // Move to SUMMARIZING stage (50% progress)
+            // Move to SUMMARIZING stage and trigger Map-Reduce summary pipeline
             lecture.setStatus(LectureStatus.SUMMARIZING);
             lecture.setProgress(50);
             lectureRepository.save(lecture);
             sseEmitterService.sendEvent(lectureId, LectureStatus.SUMMARIZING, 50, null);
 
-            log.info("STT completed for lecture {}. Ready for summarization pipeline.", lectureId);
+            log.info("STT completed for lecture {}. Launching summarization pipeline.", lectureId);
+            summaryPipelineService.executeSummarization(lectureId, null);
 
         } else if ("FAILED".equalsIgnoreCase(callbackStatus)) {
             lecture.setStatus(LectureStatus.FAILED);

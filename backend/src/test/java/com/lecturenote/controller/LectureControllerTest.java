@@ -36,6 +36,9 @@ class LectureControllerTest {
     @MockBean
     private SttClient sttClient;
 
+    @MockBean
+    private com.lecturenote.service.summary.SummaryPipelineService summaryPipelineService;
+
     @Test
     @DisplayName("Upload lecture audio file returns 202 Accepted")
     void testUploadLecture() throws Exception {
@@ -128,5 +131,17 @@ class LectureControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(callback)))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("Regenerate summary endpoint accepts model selection and enqueues task")
+    void testRegenerateSummary() throws Exception {
+        mockMvc.perform(post("/api/lectures/1/summary:regenerate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"model\": \"gemma3:4b\"}"))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.status", is("ACCEPTED")))
+                .andExpect(jsonPath("$.lectureId", is(1)))
+                .andExpect(jsonPath("$.model", is("gemma3:4b")));
     }
 }

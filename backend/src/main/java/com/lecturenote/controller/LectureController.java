@@ -30,6 +30,7 @@ public class LectureController {
     private final StorageService storageService;
     private final SseEmitterService sseEmitterService;
     private final LectureRepository lectureRepository;
+    private final com.lecturenote.service.summary.SummaryPipelineService summaryPipelineService;
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<UploadResponseDto> uploadLecture(
@@ -108,6 +109,24 @@ public class LectureController {
                     .header(HttpHeaders.ACCEPT_RANGES, "bytes")
                     .body(region);
         }
+    }
+
+    @PostMapping("/{id}/summary:regenerate")
+    public ResponseEntity<?> regenerateSummary(
+            @PathVariable("id") Long id,
+            @RequestBody(required = false) com.lecturenote.dto.RegenerateSummaryRequestDto request) {
+
+        String model = (request != null) ? request.getModel() : null;
+        log.info("Requesting summary regeneration for lecture {}: model={}", id, model);
+        summaryPipelineService.executeSummarization(id, model);
+
+        return ResponseEntity.status(HttpStatus.ACCEPTED)
+                .body(java.util.Map.of(
+                        "status", "ACCEPTED",
+                        "lectureId", id,
+                        "message", "Summary regeneration enqueued",
+                        "model", model != null ? model : "default"
+                ));
     }
 
     @DeleteMapping("/{id}")
